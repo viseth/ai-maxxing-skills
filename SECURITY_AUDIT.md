@@ -55,3 +55,10 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - The new unit tests exercise the missing-role admin denial and streamed JSON byte limits. This is **not** a deployed Caddy/Gate integration test.
 - **Release-blocking architecture concern:** unsigned proxy identity headers remain trusted for administrator authorization. Dashboard must not be reachable except through the trusted proxy, and local users/processes able to call loopback must be considered in the threat model. An authenticated proxy-to-app channel is recommended.
 - GitHub Actions actions are referenced by major tags rather than immutable SHA pins. Dependency vulnerability scanning and provenance verification are still outstanding.
+
+## Skill supply-chain and gate form hardening (continued)
+- Replaced mutable `raw.githubusercontent.com/.../main` download guidance in 12 additional skill instructions with local, reviewed-checkout guidance. This reduces **documented** supply-chain exposure but does not automatically pin every dependency or remove every mutable download elsewhere.
+- `setup-brain` now requires explicit approval and backups before replacing global Claude/Codex configuration. This is a skill-instruction control, not an OS-enforced permission boundary.
+- `gate.py` form parsing now rejects missing/nondecimal/oversized `Content-Length`, invalid UTF-8, and more than 32 URL-encoded form fields; malformed requests return HTTP 400. The workflow includes static assertions, **not HTTP integration tests**.
+- The previous GitHub Actions run `41736284930` succeeded after the skill instruction edits; gate form changes were awaiting validation at documentation time.
+- Release remains BLOCKED: additional mutable downloads, unpinned installers, secret-handling paths and proxy trust assumptions require review.
