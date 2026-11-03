@@ -74,3 +74,9 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - The matrix covers anonymous and allowlisted IP access, GET/HEAD versus mutating methods, admin-only routes, member/admin session roles, invalid cookies, missing proxy IP, malformed form requests, and login reachability from an allowlisted IP.
 - The inventory CI job now installs test-only `bcrypt==4.2.1` and runs `python3 -m unittest discover -s tests -p 'test_gate_http.py' -v`. This adds behavior coverage beyond string assertions.
 - **Still untested:** the actual Caddy/Cloudflare proxy integration, externally reachable interfaces, cross-site browser behavior, direct dashboard access, and GET endpoints with side effects.
+
+## Additional gate and Caddy findings
+- **HIGH confirmed deployment bug:** the generated Caddy site used `echo "\\trequest_header ..."`, which can emit a literal backslash-t rather than a Caddy indentation character, potentially preventing configuration parsing. Replaced both directives with `printf` and added a CI assertion. A real `caddy validate` run is still outstanding.
+- **MEDIUM:** `expose.sh` Cloudflare API helper previously used unquoted conditional argument expansion for JSON request bodies. Replaced it with a Bash argument array and explicit curl failure handling. Credentials are still supplied via a file descriptor rather than a process argument.
+- Added 3 HTTP integration tests for expired sessions, missing/invalid forwarded methods, and spoofed role headers on write requests. First CI run revealed that the gate defaulted a missing forwarded method to GET, returning 302 instead of the expected 401. Changed that fallback to fail closed. **New CI result must be checked before declaring the tests green.**
+- A forged original method or IP remains possible if an untrusted local caller can directly access the gate; Caddy-to-gate authentication and host firewall/process isolation remain release-blocking.
