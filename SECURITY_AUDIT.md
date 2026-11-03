@@ -24,3 +24,13 @@ Upstream: Melvynx/ai-maxxing-skills. Baseline tree SHA: `7b12ee7bd846d1a399f7179
 
 ## Release criteria
 No high/critical unresolved findings, reproducible CI and documented threat model, human review of security-sensitive changes, and test install in an isolated environment with no production credentials.
+
+## Subsequent work (2026-11-03)
+- The heuristic scanner identified **83 matches**, including duplicates and scanner self-matches; these are **not 83 confirmed vulnerabilities**. Self-scanning has since been excluded.
+- `initialize.sh` previously enabled `bypassPermissions` and created `--dangerously-skip-permissions` aliases. Its global bootstrap now fails closed; default permission mode and aliases were corrected. **The original install flow is intentionally nonfunctional pending redesign.**
+- `hermes.sh` previously executed remote shell installers and supported `autonomy` disabling approvals and instruction protections. Both are now blocked, and package updates no longer fetch mutable upstream.
+- `connect-vps` previously added broad wildcard SSH permissions to Claude settings. This instruction has been removed.
+- `connect-tool/scripts/cli_template.py` now blocks redirects, requires HTTPS base URLs, disables arbitrary API paths and non-interactive login, and requires `--yes` for writes. **Caution:** `--yes` is not an independent human-approval boundary if an agent can pass it; the agent permission system must enforce approval separately.
+- CI runs bash syntax checks, negative tests for blocked legacy credential forwarding and autonomy, Python AST checks and connect-tool negative tests. The latest expanded CI run must pass before treating these as verified.
+- Remaining open issues: raw credentials saved in a JSON config (mode 0600, not OS credential manager); generic API client may still accept a provider-configured unexpected domain; `gate.py`, `expose.sh`, `discord.sh` and Hermes dashboard need deeper review; exact Snyk/Socket findings unverified; unpinned GitHub Actions and dependencies; README still includes legacy installation examples under a warning.
+- Release remains **BLOCKED** until the remaining scripts are audited and the findings triaged.
