@@ -39,7 +39,7 @@ validate_setting() {
     return 2
   fi
   if [[ "$key" == HERMES_URL || "$key" == DASHBOARD_URL ]]; then
-    [[ "$value" =~ ^https?://[A-Za-z0-9._:-]+(/[A-Za-z0-9._~/%?=&+-]*)?$ ]] || {
+    [[ "$value" =~ ^https?://[^[:space:]]+$ ]] || {
       echo "invalid dashboard URL for $key" >&2
       return 2
     }
