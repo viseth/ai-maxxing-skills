@@ -18,6 +18,7 @@ jobs:
           bash -n skills/initialize/scripts/initialize.sh
           bash -n skills/setup-vps/scripts/hermes.sh
           bash -n skills/setup-vps/scripts/import-keys.sh
+          bash -n skills/setup-vps/scripts/expose.sh
       - name: Verify credential transfer is disabled
         run: |
           set +e
@@ -50,6 +51,18 @@ jobs:
           grep -q "arbitrary API endpoint disabled" /tmp/api.out
           python3 skills/connect-tool/scripts/cli_template.py login < /dev/null > /tmp/login.out 2>&1 && exit 1 || true
           grep -q "non-interactive login disabled" /tmp/login.out
+      - name: Gate security regression assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          gate = Path("skills/setup-vps/scripts/gate.py").read_text()
+          expose = Path("skills/setup-vps/scripts/expose.sh").read_text()
+          assert 'if ip_saved(self.ip) and not need_admin:' in gate
+          assert '"X-Gate-Role": "user"' in gate
+          assert 'request_header -X-Gate-User' in expose
+          assert 'request_header -X-Gate-Role' in expose
+          assert 'invalid hostname or TCP port' in expose
+          PY
       - name: Upload findings
         uses: actions/upload-artifact@v4
         with:
