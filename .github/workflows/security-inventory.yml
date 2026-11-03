@@ -19,6 +19,7 @@ jobs:
           bash -n skills/setup-vps/scripts/hermes.sh
           bash -n skills/setup-vps/scripts/import-keys.sh
           bash -n skills/setup-vps/scripts/expose.sh
+          bash -n skills/setup-my-hermes-dashboard/scripts/dashboard.sh
       - name: Verify credential transfer is disabled
         run: |
           set +e
