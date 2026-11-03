@@ -276,20 +276,10 @@ case "$cmd" in
     command -v jq >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 && python3 -c 'import bcrypt' 2>/dev/null \
       || { apt-get update -qq; apt_quiet install curl jq gnupg ca-certificates python3 python3-bcrypt; }
     install_gate
-    if ! command -v cloudflared >/dev/null 2>&1; then
-      mkdir -p --mode=0755 /usr/share/keyrings
-      curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
-      echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list
-      apt-get update -qq && apt_quiet install cloudflared
-    fi
-    if ! command -v caddy >/dev/null 2>&1; then
-      # Write the Caddyfile first so Caddy never starts on port 80, where another proxy may already listen.
-      write_caddyfile
-      curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-      curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o /etc/apt/sources.list.d/caddy-stable.list
-      chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
-      apt-get update -qq && apt_quiet install caddy
-    fi
+    # Do not import mutable third-party apt signing keys or repositories as root.
+    # Install reviewed cloudflared and Caddy packages separately, then rerun.
+    command -v cloudflared >/dev/null 2>&1 && command -v caddy >/dev/null 2>&1 ||
+      { echo "BLOCKED: install reviewed cloudflared and Caddy packages manually before expose install" >&2; exit 78; }
     grep -q "Managed by expose.sh" "$CADDY_DIR/Caddyfile" 2>/dev/null || {
       [ -f "$CADDY_DIR/Caddyfile" ] && cp "$CADDY_DIR/Caddyfile" "$CADDY_DIR/Caddyfile.bak-$(date +%Y%m%d-%H%M%S)"
       write_caddyfile
