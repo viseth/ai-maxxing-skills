@@ -6,6 +6,11 @@
 # Exit codes: 0 ok, 2 bad usage, 3 missing tool or login on the Mac, 4 several Cloudflare accounts, 6 VPS unreachable.
 set -euo pipefail
 
+# Security hold: this legacy script transfers or provisions credentials with broad scopes.
+# Disabled until per-provider least-privilege, interactive authentication is implemented.
+echo 'BLOCKED: legacy credential transfer disabled; configure dedicated scoped credentials manually.' >&2
+exit 78
+
 cmd="${1:-}"
 alias_name="${2:-hermes}"
 cf_env='$HOME/.config/cloudflare/env'
