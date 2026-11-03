@@ -57,7 +57,7 @@ jobs:
           from pathlib import Path
           gate = Path("skills/setup-vps/scripts/gate.py").read_text()
           expose = Path("skills/setup-vps/scripts/expose.sh").read_text()
-          assert 'if ip_saved(self.ip) and not need_admin:' in gate
+          assert 'if ip_saved(self.ip) and not need_admin and original_method in ("GET", "HEAD"):' in gate
           assert '"X-Gate-Role": "user"' in gate
           assert 'request_header -X-Gate-User' in expose
           assert 'request_header -X-Gate-Role' in expose
