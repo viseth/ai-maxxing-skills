@@ -272,14 +272,14 @@ case "$cmd" in
   install)
     name="${2:-$(hostname -s)-vps}"
     load_cf
-    mkdir -p "$STATE" && chmod 700 "$STATE"
-    command -v jq >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 && python3 -c 'import bcrypt' 2>/dev/null \
-      || { apt-get update -qq; apt_quiet install curl jq gnupg ca-certificates python3 python3-bcrypt; }
-    install_gate
     # Do not import mutable third-party apt signing keys or repositories as root.
     # Install reviewed cloudflared and Caddy packages separately, then rerun.
     command -v cloudflared >/dev/null 2>&1 && command -v caddy >/dev/null 2>&1 ||
       { echo "BLOCKED: install reviewed cloudflared and Caddy packages manually before expose install" >&2; exit 78; }
+    mkdir -p "$STATE" && chmod 700 "$STATE"
+    command -v jq >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 && python3 -c 'import bcrypt' 2>/dev/null \
+      || { apt-get update -qq; apt_quiet install curl jq gnupg ca-certificates python3 python3-bcrypt; }
+    install_gate
     grep -q "Managed by expose.sh" "$CADDY_DIR/Caddyfile" 2>/dev/null || {
       [ -f "$CADDY_DIR/Caddyfile" ] && cp "$CADDY_DIR/Caddyfile" "$CADDY_DIR/Caddyfile.bak-$(date +%Y%m%d-%H%M%S)"
       write_caddyfile
