@@ -57,9 +57,15 @@ def call(method, path, args, opts):
     key = os.environ.get(ENV_KEY) or cfg.get("api_key")
     if not key:
         fail(f"no API key. Run: login (create one at {KEY_URL})")
-    if method == "DELETE" and "yes" not in opts:
-        fail("this deletes data, add --yes")
-    url = fill(BASE_URL, [], cfg).rstrip("/") + fill(path, args, cfg)
+    if method not in {"GET", "HEAD", "OPTIONS"} and "yes" not in opts:
+        fail("write operation requires explicit --yes after human review")
+    base = fill(BASE_URL, [], cfg).rstrip("/")
+    parsed_base = urllib.parse.urlsplit(base)
+    if parsed_base.scheme != "https" or not parsed_base.hostname or parsed_base.username or parsed_base.password:
+        fail("API base must use HTTPS and contain no embedded credentials")
+    if not path.startswith("/") or path.startswith("//") or "\r" in path or "\n" in path:
+        fail("invalid relative API path")
+    url = base + fill(path, args, cfg)
     if opts.get("query"):
         url += "?" + urllib.parse.urlencode(opts["query"])
     data = opts.get("data")
@@ -72,9 +78,13 @@ def call(method, path, args, opts):
         except ValueError:
             fail("--data must be valid JSON")
         headers["Content-Type"] = "application/json"
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            fail("HTTP redirect blocked to avoid credential forwarding")
+
     req = urllib.request.Request(url, data=data or None, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req) as res:
+        with urllib.request.build_opener(NoRedirect).open(req, timeout=20) as res:
             body, ok = res.read().decode(), True
     except urllib.error.HTTPError as e:
         body, ok = e.read().decode(), False
@@ -93,7 +103,7 @@ def login(opts):
         print(f"Create your key here: {KEY_URL}")
         cfg["api_key"] = getpass.getpass("API key (hidden): ").strip()
     else:
-        cfg["api_key"] = sys.stdin.read().strip()  # printf '%s' "$KEY" | tool.py login
+        fail("non-interactive login disabled; use masked input in a local terminal")
     for name, question in SETTINGS.items():
         cfg[name] = opts.get(name) or (input(question + ": ").strip() if sys.stdin.isatty() else cfg.get(name))
     if not cfg["api_key"] or not all(cfg.get(n) for n in SETTINGS):
@@ -107,7 +117,7 @@ def usage():
     rows = [("login", "Save the API key" + (" and " + ", ".join(SETTINGS) if SETTINGS else "")),
             ("logout", "Forget the key"),
             *((n, c[2]) for n, c in COMMANDS.items()),
-            ("api", "api <METHOD> <path> (any endpoint)")]
+            ("api", "disabled; only reviewed named endpoints")]
     print(f"Usage: {sys.argv[0]} <command> [args] [--data JSON|-] [--query k=v] [--yes]\n")
     print("\n".join(f"  {n:<20} {h}" for n, h in rows))
 
@@ -134,7 +144,7 @@ def main():
         CONFIG.unlink(missing_ok=True)
         print("Key removed.")
     elif cmd == "api" and len(rest) >= 2:
-        call(rest[0].upper(), "/" + rest[1].lstrip("/"), rest[2:], opts)
+        fail("arbitrary API endpoint disabled; add reviewed named commands to COMMANDS")
     elif cmd in COMMANDS:
         call(*COMMANDS[cmd][:2], rest, opts)
     else:
