@@ -10,7 +10,7 @@
 
 ## Phase 14 — HTTP and proxy validation
 - `gate.py` localhost HTTP integration tests cover network-only read access, writes requiring sessions, admin/member roles, expired/forged sessions, missing proxy methods, malformed forms and spoofed identity headers.
-- `tests/test_caddy_config.sh` builds representative gate and site configuration from the actual `gate_snippet` function and runs `caddy validate` in CI. **This is syntax/configuration validation, not a running end-to-end reverse-proxy test.**
+- `tests/test_caddy_config.sh` builds representative gate and site configuration from the actual `gate_snippet` function and runs `caddy validate` in CI using a digest-pinned Caddy 2.10.2 container. **This is syntax/configuration validation, not a running end-to-end reverse-proxy test.**
 - No Cloudflare Tunnel, real DNS, actual browser, remote server, or local process isolation test has been run.
 
 ## Phase 15 — dependency and supply-chain review
@@ -28,3 +28,7 @@ Release only after all conditions are met:
 5. Perform independent manual review of the final diff and approve explicitly. Keep the PR as draft and do not deploy until this is done.
 
 **Scope limitation:** These phases establish a defensible risk register and targeted automated checks. They do not establish that the repository is safe for unrestricted installation.
+
+## Validation record
+- Caddy configuration validation initially failed on Ubuntu's Caddy 2.6.2 because its `servers` block does not support `trusted_proxies`. The test was changed to use a digest-pinned Caddy 2.10.2 container; success must be checked in the latest CI run.
+- Final disposition remains **NO-GO**, regardless of static CI success, until real end-to-end deployment and remaining supply-chain review are completed.
