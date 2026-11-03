@@ -29,8 +29,19 @@ need_code() {
 health() { curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/v1/health" 2>/dev/null; }
 setting() { $SUDO sed -n "s/^$1=//p" "$ENV_FILE" 2>/dev/null | tail -1; }
 
+# Reject control characters in settings stored in root-owned systemd EnvironmentFile.
+validate_setting() {
+  local key="$1" value="$2"
+  case "$key" in DASHBOARD_OWNER|HERMES_URL|DASHBOARD_URL) ;; *) return 2 ;; esac
+  [ -n "$value" ] && [ "${#value}" -le 2048 ] && [[ ! "$value" =~ [[:cntrl:]] ]] || return 2
+  if [[ "$key" == HERMES_URL || "$key" == DASHBOARD_URL ]]; then
+    [[ "$value" =~ ^https?://[^[:space:]]+$ ]] || return 2
+  fi
+}
+
 # Sets KEY=value in the settings file, keeping every other line.
 set_setting() {
+  validate_setting "$1" "$2" || { echo "invalid dashboard setting" >&2; return 2; }
   local tmp; tmp="$(mktemp)"
   $SUDO cat "$ENV_FILE" | grep -v "^$1=" > "$tmp" || true
   printf '%s=%s\n' "$1" "$2" >> "$tmp"
@@ -40,23 +51,8 @@ set_setting() {
 
 case "$cmd" in
   install-node)
-    if command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ]; then
-      echo "node=$(node --version) already there"
-    else
-      case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported CPU $(uname -m)" >&2; exit 3 ;; esac
-      command -v xz >/dev/null 2>&1 || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq xz-utils >/dev/null; }
-      tmp="$(mktemp -d)"
-      base=https://nodejs.org/dist/latest-v24.x
-      curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
-      file="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' "$tmp/SHASUMS256.txt")"
-      [ -n "$file" ] || { echo "no Node 24 build for linux-$arch" >&2; exit 3; }
-      curl -fsSL "$base/$file" -o "$tmp/$file"
-      (cd "$tmp" && grep " $file\$" SHASUMS256.txt | sha256sum -c --quiet)
-      $SUDO tar -xJf "$tmp/$file" -C /usr/local --strip-components=1 --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md
-      rm -f "$tmp/SHASUMS256.txt" "$tmp/$file" && rmdir "$tmp"
-    fi
-    [ "$(pnpm --version 2>/dev/null)" = "$PNPM_VERSION" ] || $SUDO npm install -g --silent "pnpm@$PNPM_VERSION" >/dev/null
-    echo "node=$(node --version) pnpm=$(pnpm --version)"
+    echo "BLOCKED: provision reviewed, version-pinned Node.js and pnpm releases manually; no mutable latest-v24.x download or global npm install" >&2
+    exit 78
     ;;
 
   deploy)
@@ -89,6 +85,9 @@ EOF
       echo "a dashboard service already exists and was not made by this script: not touching it" >&2
       exit 3
     fi
+    for value in "$DIR" "$(command -v node)" "$(id -un)"; do
+      [[ ! "$value" =~ [[:cntrl:]] ]] || { echo "invalid systemd unit value" >&2; exit 2; }
+    done
     tmp="$(mktemp)"
     cat > "$tmp" <<EOF
 # Managed by dashboard.sh

@@ -10,7 +10,7 @@ Where a skill lives, always one source and links elsewhere, never two copies:
 - For every folder (the default): `~/.agents/skills/<name>/` (Codex reads it there), linked in `~/.claude/skills/` for Claude Code.
 - Only for the brain or one project: `<folder>/.agents/skills/<name>/`, read by Claude Code through `<folder>/.claude/skills`, one link to that folder. Brain workflows (`done`, `create-project`, `cleanup`, `projects`) live there; the brain path is in the `## Brain` section of `~/.agents/AGENTS.md` or `~/.claude/CLAUDE.md`.
 
-[scripts/skills.sh](scripts/skills.sh) does every install, update and removal; never copy or delete skill folders by hand. When you got this skill from a link, download it first: `curl -fsSL https://raw.githubusercontent.com/Melvynx/ai-maxxing-skills/main/skills/skill-manager/scripts/skills.sh -o <scratch>/skills.sh`. Add `--to <folder>` to any command to work in the brain or a project instead of every folder. On Windows, run it from Git Bash.
+[scripts/skills.sh](scripts/skills.sh) does every install, update and removal; never copy or delete skill folders by hand. Do not fetch the manager from a mutable branch. Use the reviewed local `scripts/skills.sh` only with explicit user approval.
 
 To install: a source is skill names of the ai-maxxing kit (`create-landing lumail`), a GitHub repo (`owner/repo`), a GitHub link to a skill folder or its `SKILL.md`, or a local folder.
 1. When the user asks what they can install, run `bash skills.sh available` (or `available <repo>`) and show each skill with what it lets them ask, in one short list.

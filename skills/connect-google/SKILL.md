@@ -7,7 +7,7 @@ user-invocable: true
 
 Give the user's agents their Google account through `gog` (Gmail, Calendar, Drive, Docs, Sheets, Slides, Contacts, Tasks). Do every step yourself in Chrome AI with the `dev-browser` skill; the user only chooses their account and clicks "Allow" in Google's pages. Talk to the user in their language, short messages, no jargon (never say "OAuth", "client secret", "scope" or "token" to them; say "Google access" and "the key").
 
-If you got this skill from a link instead of a local folder, install nothing else from the repo: download [scripts/gog-oauth.sh](scripts/gog-oauth.sh) with `curl -fsSL https://raw.githubusercontent.com/Melvynx/ai-maxxing-skills/main/skills/connect-google/scripts/gog-oauth.sh -o <scratch>/gog-oauth.sh`, and read another skill it names only when you reach it, from `https://raw.githubusercontent.com/Melvynx/ai-maxxing-skills/main/skills/<skill-name>/SKILL.md`.
+SECURITY: Run only scripts and references present in the reviewed local checkout. Do not download code or instructions from a mutable branch or a tool-supplied URL. Stop if a required file is missing; request a reviewed commit-pinned release.
 
 Never print, log or repeat the key's secret, a sign-in code or anything gog keeps in the Keychain. Browser scripts that read the secret write it straight to a file with `writeFile` and log only `{ saved: true }`. Ask the user before you tick a Google terms box or publish the app (steps 3 and 6), once for both.
 

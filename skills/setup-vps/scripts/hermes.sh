@@ -59,7 +59,11 @@ install_skill() {
 }
 # Clones or updates the ai-maxxing package.
 pull_pkg() {
-  if [ -d "$PKG/.git" ]; then git -C "$PKG" pull -q --ff-only; else mkdir -p "$(dirname "$PKG")" && git clone -q --depth 1 https://github.com/Melvynx/ai-maxxing-skills "$PKG"; fi
+  # Remote auto-updates from mutable upstream are forbidden.
+  # Operator must stage a reviewed, commit-pinned checkout at $PKG.
+  [ -d "$PKG/.git" ] || { echo "BLOCKED: stage a reviewed pinned checkout in $PKG first" >&2; exit 78; }
+  [ -z "$(git -C "$PKG" status --porcelain)" ] || { echo "BLOCKED: staged checkout has local changes" >&2; exit 78; }
+  echo "Using existing reviewed local checkout: $(git -C "$PKG" rev-parse HEAD)"
 }
 # The package folder of a skill: a skill of the package, one of the server's tool skills, or the Hermes skill
 # that comes with a setup skill (the dashboard one).
@@ -87,8 +91,8 @@ case "$cmd" in
   install)
     command -v git >/dev/null 2>&1 && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 \
       || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq git curl jq ca-certificates >/dev/null; }
-    command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null
-    command -v hermes >/dev/null 2>&1 || curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash -s -- --non-interactive
+    command -v claude >/dev/null 2>&1 || { echo "BLOCKED: install Claude Code manually from the verified vendor release; no curl-to-shell" >&2; exit 78; }
+    command -v hermes >/dev/null 2>&1 || { echo "BLOCKED: install a reviewed, pinned Hermes release manually; no curl-to-shell" >&2; exit 78; }
     grep -q '.local/bin' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     echo "claude=$(claude --version 2>/dev/null | head -1)"
     echo "hermes=$(hermes --version 2>/dev/null | head -1)"
@@ -134,6 +138,12 @@ case "$cmd" in
 
   dashboard)
     port="${2:-9119}"
+    [[ "$port" =~ ^[0-9]{1,5}$ ]] && (( 10#$port >= 1 && 10#$port <= 65535 )) ||
+      { echo "invalid dashboard TCP port" >&2; exit 2; }
+    for value in "$HOME" "$(command -v hermes || true)" "$(id -un)"; do
+      [[ "$value" != *[$'\r\n']* ]] && [[ ! "$value" =~ [[:cntrl:]] ]] ||
+        { echo "invalid systemd service value" >&2; exit 2; }
+    done
     command -v hermes >/dev/null 2>&1 || { echo "Hermes is missing: run '$0 install'" >&2; exit 3; }
     unit=/etc/systemd/system/hermes-dashboard.service
     if [ -f "$unit" ] && ! grep -q "Managed by hermes.sh" "$unit"; then
@@ -185,35 +195,20 @@ EOF
     ;;
 
   autonomy)
-    need_hermes
-    cp "$(hermes config path)" "$(hermes config path).bak-$(date +%s)"
-    # No "may I run this?" questions: Hermes runs every command and edits its own instruction files directly.
-    hermes config set approvals.mode off >/dev/null
-    hermes config set security.protected_instruction_files false >/dev/null
-    # One short line in the chat for every tool Hermes uses.
-    for platform in telegram discord; do hermes config set "display.platforms.$platform.tool_progress" all >/dev/null; done
-    hermes gateway restart < /dev/null >/dev/null 2>&1 || true
-    echo "autonomy ok: approvals $(hermes config get approvals.mode | tail -1), tool lines $(hermes config get display.platforms.telegram.tool_progress | tail -1)"
+    echo "BLOCKED: unattended autonomy disables approval checks and instruction-file protections." >&2
+    exit 78
     ;;
 
   skills)
     domain="${2:-}"; dir="${3:-}"
     [ -n "$domain" ] && [ -d "$dir" ] || { echo "usage: $0 skills <domain> <folder of skills>" >&2; exit 2; }
     need_hermes
-    # The cf CLI needs Node 22.23+ or 24.22+: the official Node 24 build, checked against its published sums.
-    if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
-      case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported CPU $(uname -m)" >&2; exit 3 ;; esac
-      command -v xz >/dev/null 2>&1 || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq xz-utils >/dev/null; }
-      tmp="$(mktemp -d)"; base=https://nodejs.org/dist/latest-v24.x
-      curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
-      file="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' "$tmp/SHASUMS256.txt")"
-      curl -fsSL "$base/$file" -o "$tmp/$file"
-      (cd "$tmp" && grep " $file\$" SHASUMS256.txt | sha256sum -c --quiet)
-      $SUDO tar -xJf "$tmp/$file" -C /usr/local --strip-components=1 --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md
-      rm -f "$tmp/SHASUMS256.txt" "$tmp/$file" && rmdir "$tmp"
-      hash -r
-    fi
-    command -v cf >/dev/null 2>&1 || $SUDO npm install -g --silent cf >/dev/null
+    # Do not install a mutable Node archive or an unpinned global npm package.
+    # The operator must provision and review both executables separately.
+    command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ] ||
+      { echo "BLOCKED: install a reviewed Node 24 release manually before adding skills" >&2; exit 78; }
+    command -v cf >/dev/null 2>&1 ||
+      { echo "BLOCKED: install a reviewed and pinned cf CLI manually; no unpinned global npm install" >&2; exit 78; }
     mkdir -p "$(dirname "$DOMAIN_FILE")" && echo "$domain" > "$DOMAIN_FILE"
     for src in "$dir"/*/; do
       [ -f "$src/SKILL.md" ] && install_skill "$src" "$domain"

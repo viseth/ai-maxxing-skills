@@ -1,0 +1,118 @@
+name: Security inventory
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read-only heuristic scan
+        run: python3 scripts/security_audit.py --root . --output security-findings.json
+      - name: Check shell syntax for security-sensitive scripts
+        run: |
+          bash -n skills/initialize/scripts/initialize.sh
+          bash -n skills/setup-vps/scripts/hermes.sh
+          bash -n skills/setup-vps/scripts/import-keys.sh
+          bash -n skills/setup-vps/scripts/expose.sh
+          bash -n skills/setup-vps/scripts/hermes.sh
+          bash -n skills/setup-my-hermes-dashboard/scripts/dashboard.sh
+      - name: Verify credential transfer is disabled
+        run: |
+          set +e
+          bash skills/setup-vps/scripts/import-keys.sh github > /tmp/blocked.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/blocked.out
+      - name: Verify autonomy is disabled
+        run: |
+          set +e
+          bash skills/setup-vps/scripts/hermes.sh autonomy > /tmp/autonomy.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/autonomy.out
+      - name: Compile Python files without importing them
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for path in Path("skills").rglob("*.py"):
+              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+          ast.parse(Path("scripts/security_audit.py").read_text(encoding="utf-8"))
+          PY
+      - name: Test connect-tool fail-closed behavior
+        run: |
+          set -e
+          python3 skills/connect-tool/scripts/cli_template.py api GET /me > /tmp/api.out 2>&1 && exit 1 || true
+          grep -q "arbitrary API endpoint disabled" /tmp/api.out
+          python3 skills/connect-tool/scripts/cli_template.py login < /dev/null > /tmp/login.out 2>&1 && exit 1 || true
+          grep -q "non-interactive login disabled" /tmp/login.out
+      - name: Verify mutable dashboard bootstrap is disabled
+        run: |
+          set +e
+          bash skills/setup-my-hermes-dashboard/scripts/dashboard.sh install-node >/tmp/node-blocked.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/node-blocked.out
+      - name: Reject executable Cloudflare credential files
+        run: bash tests/test_cloudflare_env.sh
+      - name: Validate representative Caddy configuration
+        run: |
+          bash tests/test_caddy_config.sh
+      - name: Gate HTTP authorization integration tests
+        run: |
+          python3 -m pip install --user bcrypt==4.2.1
+          python3 -m unittest discover -s tests -p 'test_gate_http.py' -v
+      - name: Gate security regression assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          gate = Path("skills/setup-vps/scripts/gate.py").read_text()
+          expose = Path("skills/setup-vps/scripts/expose.sh").read_text()
+          assert 'if ip_saved(self.ip) and not need_admin and original_method in ("GET", "HEAD"):' in gate
+          assert '"X-Gate-Role": "user"' in gate
+          assert 'request_header -X-Gate-User' in expose
+          assert 'request_header -X-Gate-Role' in expose
+          assert r'echo "\trequest_header' not in expose
+          assert r'printf "\trequest_header -X-Gate-User\n"' in expose
+          assert 'invalid hostname or TCP port' in expose
+          assert 'if f is None:' in gate
+          assert 'max_num_fields=32' in gate
+          assert 'original_method in ("GET", "HEAD")' in gate
+          assert 'if self.session() or ip_saved(self.ip):' not in gate
+          PY
+      - name: Upload findings
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-findings
+          path: security-findings.json
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills/setup-my-hermes-dashboard/template
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pinned package manager
+        run: corepack enable
+      - name: Verify lockfile and install dependencies
+        run: |
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile
+      - name: Dashboard unit tests
+        run: corepack pnpm test
+      - name: Dashboard TypeScript check
+        run: corepack pnpm typecheck

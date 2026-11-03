@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { viewerFrom } from "./viewer";
 
 describe("viewerFrom", () => {
-  it("treats a request from the server itself as the owner", () => {
-    expect(viewerFrom(undefined, undefined)).toEqual({ email: null, role: "admin" });
+  it("denies administrator privileges when the gate role is missing", () => {
+    expect(viewerFrom(undefined, undefined)).toEqual({ email: null, role: "member" });
+    expect(viewerFrom("eve@example.com", "")).toEqual({ email: "eve@example.com", role: "member" });
   });
 
   it("reads the gate's user and role", () => {
@@ -12,8 +13,9 @@ describe("viewerFrom", () => {
     expect(viewerFrom("bob@example.com", "member")).toEqual({ email: "bob@example.com", role: "member" });
   });
 
-  it("keeps a saved IP as admin without an email", () => {
-    expect(viewerFrom("", "admin")).toEqual({ email: null, role: "admin" });
+  it("treats a saved IP as a non-admin member", () => {
+    expect(viewerFrom("", "user")).toEqual({ email: null, role: "member" });
+    expect(viewerFrom("", "admin")).toEqual({ email: null, role: "member" });
   });
 
   it("never upgrades an unknown role", () => {

@@ -17,7 +17,7 @@
 #   expose.sh status                         tunnel, gate, users, every hostname, and any route that skips the gate
 # --as-local sends Host and Origin as 127.0.0.1:<port>, for apps that only answer to localhost (the Hermes dashboard).
 # --admins keeps the site for admins: members who sign in get "restricted access". The app behind receives the
-# signed-in email and role in the X-Gate-User and X-Gate-Role headers (a saved IP counts as admin, with no email).
+# signed-in email and role in the X-Gate-User and X-Gate-Role headers (a saved IP is never sufficient for admin).
 # gate.py (and its font geist.woff2) must sit next to this script or in /usr/local/lib/vps-gate.
 # Exit codes: 0 ok, 2 bad usage, 3 missing setup, 4 DNS name already used by something else, 5 Cloudflare or Lumail error.
 set -euo pipefail
@@ -34,18 +34,51 @@ API=https://api.cloudflare.com/client/v4
 cmd="${1:-}"
 
 load_cf() {
-  local home env
+  local home env line key value
   home="$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)"
   env="${CLOUDFLARE_ENV_FILE:-$home/.config/cloudflare/env}"
-  [ -f "$env" ] || { echo "no Cloudflare token on the VPS ($env): run import-keys.sh cloudflare from the Mac" >&2; exit 3; }
-  # shellcheck disable=SC1090
-  . "$env"
-  [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || { echo "token or account missing in $env" >&2; exit 3; }
+  [ -f "$env" ] && [ ! -L "$env" ] || { echo "Cloudflare token file missing or symlinked ($env)" >&2; return 3; }
+  # This file can belong to the invoking non-root user. NEVER source it as root.
+  # Read only two literal KEY=VALUE assignments; no shell expansion or evaluation.
+  CLOUDFLARE_API_TOKEN=""
+  CLOUDFLARE_ACCOUNT_ID=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    if [[ "$line" =~ ^(export[[:space:]]+)?(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$ ]]; then
+      key="${BASH_REMATCH[2]}"
+      value="${BASH_REMATCH[3]}"
+      # Accept conventional single- or double-quoted literal values, not expressions.
+      if [[ "$value" == \"*\" || "$value" == \'*\' ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+      if [[ ! "$value" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "invalid Cloudflare credential value in $env" >&2
+        return 3
+      fi
+      printf -v "$key" '%s' "$value"
+    else
+      echo "unsupported Cloudflare credential line in $env (only literal token and account ID accepted)" >&2
+      return 3
+    fi
+  done < "$env"
+  [ -n "$CLOUDFLARE_API_TOKEN" ] && [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]] || {
+    echo "Cloudflare token or 32-character account ID missing/invalid in $env" >&2
+    return 3
+  }
 }
 
 cfapi() { # method path [json-body]
   local out
-  out="$(curl -sS -X "$1" "$API$2" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" ${3:+--data "$3"})"
+  local -a args=(-fsS --max-time 20 -X "$1" "$API$2"
+    -H @<(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN")
+    -H "Content-Type: application/json")
+  if [ "$#" -ge 3 ]; then
+    args+=(--data "$3")
+  fi
+  if ! out="$(curl "${args[@]}")"; then
+    echo "Cloudflare API request failed: $1 $2" >&2
+    return 5
+  fi
   if [ "$(printf '%s' "$out" | jq -r '.success')" != "true" ]; then
     echo "Cloudflare refused $1 $2: $(printf '%s' "$out" | jq -c '.errors')" >&2
     exit 5
@@ -239,24 +272,14 @@ case "$cmd" in
   install)
     name="${2:-$(hostname -s)-vps}"
     load_cf
+    # Do not import mutable third-party apt signing keys or repositories as root.
+    # Install reviewed cloudflared and Caddy packages separately, then rerun.
+    command -v cloudflared >/dev/null 2>&1 && command -v caddy >/dev/null 2>&1 ||
+      { echo "BLOCKED: install reviewed cloudflared and Caddy packages manually before expose install" >&2; exit 78; }
     mkdir -p "$STATE" && chmod 700 "$STATE"
     command -v jq >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 && python3 -c 'import bcrypt' 2>/dev/null \
       || { apt-get update -qq; apt_quiet install curl jq gnupg ca-certificates python3 python3-bcrypt; }
     install_gate
-    if ! command -v cloudflared >/dev/null 2>&1; then
-      mkdir -p --mode=0755 /usr/share/keyrings
-      curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
-      echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list
-      apt-get update -qq && apt_quiet install cloudflared
-    fi
-    if ! command -v caddy >/dev/null 2>&1; then
-      # Write the Caddyfile first so Caddy never starts on port 80, where another proxy may already listen.
-      write_caddyfile
-      curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-      curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o /etc/apt/sources.list.d/caddy-stable.list
-      chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
-      apt-get update -qq && apt_quiet install caddy
-    fi
     grep -q "Managed by expose.sh" "$CADDY_DIR/Caddyfile" 2>/dev/null || {
       [ -f "$CADDY_DIR/Caddyfile" ] && cp "$CADDY_DIR/Caddyfile" "$CADDY_DIR/Caddyfile.bak-$(date +%Y%m%d-%H%M%S)"
       write_caddyfile
@@ -399,7 +422,12 @@ EOF
         *) host="" ;;
       esac
     done
-    [ -n "$host" ] && [[ "$port" =~ ^[0-9]+$ ]] || { echo "usage: $0 add <hostname> <port> [--as-local] [--admins]" >&2; exit 2; }
+    # Strictly validate values before embedding them into Caddy config, API paths and filenames.
+    [[ "$host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
+      [[ "$host" == *.* ]] && [[ "$host" != *..* ]] &&
+      [[ "$port" =~ ^[0-9]{1,5}$ ]] &&
+      (( 10#$port >= 1 && 10#$port <= 65535 )) ||
+      { echo "invalid hostname or TCP port (expected DNS hostname and 1..65535)" >&2; exit 2; }
     load_cf
     id="$(tunnel_id)"
     zone="$(zone_id_for "$host")"
@@ -413,6 +441,8 @@ EOF
     fi
     {
       echo "http://$host:$GATE_PORT {"
+      printf "\trequest_header -X-Gate-User\n"
+      printf "\trequest_header -X-Gate-Role\n"
       echo "	import $snippet"
       if [ "$as_local" = "--as-local" ]; then
         # The app only sees Origin 127.0.0.1 below, so it cannot spot another site's request (a saved IP passes
@@ -438,7 +468,9 @@ EOF
 
   remove)
     host="${2:-}"
-    [ -n "$host" ] || { echo "usage: $0 remove <hostname>" >&2; exit 2; }
+    [[ "$host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
+      [[ "$host" == *.* ]] && [[ "$host" != *..* ]] ||
+      { echo "invalid DNS hostname" >&2; exit 2; }
     load_cf
     id="$(tunnel_id)"
     set_ingress "$host" remove

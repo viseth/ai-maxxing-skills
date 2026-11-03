@@ -1,3 +1,5 @@
+> **SECURITY NOTICE (fork hardening in progress):** This repository has not completed a security review. Do not run one-line installers, install all skills globally, paste API keys into chats, or disable agent permission prompts. The upstream commands below are retained as historical documentation only and must not be executed. See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) and the draft hardening PR.
+
 # AI Maxxing Skills
 
 Les skills Claude Code que j'utilise dans la formation gratuite **"Comment créer ton SaaS personnel en moins de 30 minutes"**. Tu les installes une fois, et Claude sait créer, déployer, sécuriser et vendre ton application tout seul, avec la stack Cloudflare, Convex, Lumail et Stripe.
