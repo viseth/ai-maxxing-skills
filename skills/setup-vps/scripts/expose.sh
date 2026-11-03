@@ -427,8 +427,8 @@ EOF
     fi
     {
       echo "http://$host:$GATE_PORT {"
-      echo "\trequest_header -X-Gate-User"
-      echo "\trequest_header -X-Gate-Role"
+      printf "\trequest_header -X-Gate-User\n"
+      printf "\trequest_header -X-Gate-Role\n"
       echo "	import $snippet"
       if [ "$as_local" = "--as-local" ]; then
         # The app only sees Origin 127.0.0.1 below, so it cannot spot another site's request (a saved IP passes
