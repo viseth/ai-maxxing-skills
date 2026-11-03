@@ -65,8 +65,6 @@ jobs:
         run: bash tests/test_cloudflare_env.sh
       - name: Validate representative Caddy configuration
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq caddy
           bash tests/test_caddy_config.sh
       - name: Gate HTTP authorization integration tests
         run: |
