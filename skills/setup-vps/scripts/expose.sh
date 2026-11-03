@@ -399,7 +399,12 @@ EOF
         *) host="" ;;
       esac
     done
-    [ -n "$host" ] && [[ "$port" =~ ^[0-9]+$ ]] || { echo "usage: $0 add <hostname> <port> [--as-local] [--admins]" >&2; exit 2; }
+    # Strictly validate values before embedding them into Caddy config, API paths and filenames.
+    [[ "$host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
+      [[ "$host" == *.* ]] && [[ "$host" != *..* ]] &&
+      [[ "$port" =~ ^[0-9]{1,5}$ ]] &&
+      (( 10#$port >= 1 && 10#$port <= 65535 )) ||
+      { echo "invalid hostname or TCP port (expected DNS hostname and 1..65535)" >&2; exit 2; }
     load_cf
     id="$(tunnel_id)"
     zone="$(zone_id_for "$host")"
@@ -413,6 +418,8 @@ EOF
     fi
     {
       echo "http://$host:$GATE_PORT {"
+      echo "\trequest_header -X-Gate-User"
+      echo "\trequest_header -X-Gate-Role"
       echo "	import $snippet"
       if [ "$as_local" = "--as-local" ]; then
         # The app only sees Origin 127.0.0.1 below, so it cannot spot another site's request (a saved IP passes
