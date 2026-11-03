@@ -87,8 +87,8 @@ case "$cmd" in
   install)
     command -v git >/dev/null 2>&1 && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 \
       || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq git curl jq ca-certificates >/dev/null; }
-    command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null
-    command -v hermes >/dev/null 2>&1 || curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash -s -- --non-interactive
+    command -v claude >/dev/null 2>&1 || { echo "BLOCKED: install Claude Code manually from the verified vendor release; no curl-to-shell" >&2; exit 78; }
+    command -v hermes >/dev/null 2>&1 || { echo "BLOCKED: install a reviewed, pinned Hermes release manually; no curl-to-shell" >&2; exit 78; }
     grep -q '.local/bin' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     echo "claude=$(claude --version 2>/dev/null | head -1)"
     echo "hermes=$(hermes --version 2>/dev/null | head -1)"
