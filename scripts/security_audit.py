@@ -7,12 +7,12 @@ import re
 import sys
 
 PATTERNS = {
-    "mutable_raw_github": (r"raw\\.githubusercontent\\.com/[^\\s\x60'\"]+/(?:main|master)/", "high"),
-    "download_pipe_shell": (r"(?:curl|wget)[^\\n|]{0,250}\\|\\s*(?:sudo\\s+)?(?:bash|sh)\\b", "high"),
-    "chat_secret_in_shell": (r"printf[^\\n]{0,160}(?:<key>|api.?key|token)", "high"),
+    "mutable_raw_github": (r"raw\.githubusercontent\.com/[^\s\x60'\"]+/(?:main|master)/", "high"),
+    "download_pipe_shell": (r"(?:curl|wget)[^\n|]{0,250}\|\s*(?:sudo\s+)?(?:bash|sh)\b", "high"),
+    "chat_secret_in_shell": (r"printf[^\n]{0,160}(?:<key>|api.?key|token)", "high"),
     "unattended_agent": (r"dangerously-skip-permissions|hermes-setup autonomy", "high"),
-    "broad_remote_allow": (r"Bash\\((?:ssh|scp|rsync)\\s+[^)]*\\*\\)", "high"),
-    "unversioned_install": (r"npx\\s+(?:-y\\s+)?[^\\s\x60]+@latest|npm\\s+install\\s+-g\\s+[^\\s\x60]+", "medium"),
+    "broad_remote_allow": (r"Bash\((?:ssh|scp|rsync)\s+[^)]*\*\)", "high"),
+    "unversioned_install": (r"npx\s+(?:-y\s+)?[^\s\x60]+@latest|npm\s+install\s+-g\s+[^\s\x60]+", "medium"),
 }
 # Findings are intentionally not suppressed by prose disclaimers; review manually.
 def scan(root):
