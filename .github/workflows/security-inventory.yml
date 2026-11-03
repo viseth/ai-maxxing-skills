@@ -13,6 +13,27 @@ jobs:
           persist-credentials: false
       - name: Read-only heuristic scan
         run: python3 scripts/security_audit.py --root . --output security-findings.json
+      - name: Check shell syntax for security-sensitive scripts
+        run: |
+          bash -n skills/initialize/scripts/initialize.sh
+          bash -n skills/setup-vps/scripts/hermes.sh
+          bash -n skills/setup-vps/scripts/import-keys.sh
+      - name: Verify credential transfer is disabled
+        run: |
+          set +e
+          bash skills/setup-vps/scripts/import-keys.sh github > /tmp/blocked.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/blocked.out
+      - name: Verify autonomy is disabled
+        run: |
+          set +e
+          bash skills/setup-vps/scripts/hermes.sh autonomy > /tmp/autonomy.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/autonomy.out
       - name: Upload findings
         uses: actions/upload-artifact@v4
         with:
