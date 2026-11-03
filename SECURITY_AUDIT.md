@@ -87,3 +87,9 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - Added `tests/test_cloudflare_env.sh` to check accepted literals and rejection of command substitutions, extra shell directives, and symlinks without executing the privileged script. CI now runs it.
 - **Compatibility:** configuration files containing dynamic shell expressions or extra keys must be converted to literal assignments. This is intentional; do not reintroduce sourcing.
 - **Remaining:** the Cloudflare file may be user-writable and its contents can change between checks and reads (TOCTOU); consider requiring a root-owned credential file under `/etc` and test installation/migration on a disposable VPS.
+
+## Final review milestone: phases 13–16
+- Hardened Hermes and dashboard systemd parameter handling; blocked unreviewed mutable Node/npm installers and third-party apt bootstrap. Privileged scripts are included in shell syntax CI.
+- Added representative Caddy configuration validation using a Caddy 2.10.2 container pinned to digest `sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb`. Ubuntu Caddy 2.6.2 cannot parse the configured `trusted_proxies` directive; a newer version is required.
+- **Final risk decision: NO-GO.** Read `SECURITY_RELEASE_DECISION.md` for remaining acceptance criteria. No full reverse-proxy runtime integration test, no complete third-party dependency audit, and no production isolation verification have been performed.
+- CI status must be verified at the latest commit; a successful job is not a security certification.
