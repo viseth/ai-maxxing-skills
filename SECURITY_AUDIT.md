@@ -42,3 +42,9 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - **MEDIUM:** `expose.sh` previously supplied the Cloudflare API token as a curl command-line argument; it now supplies that header via a process-substitution file descriptor. The token remains in a sourced environment file and requires restricted permissions and scope.
 - The CI currently uses shell/Python syntax and static regression assertions. **It does not perform an end-to-end HTTP authorization or Caddy configuration test.**
 - **Open:** review all remaining trust boundaries in `gate.py`, including the localhost `X-Gate-IP` header, session lifetime, CSRF coverage, IP allowlist behavior, and Caddy proxy configuration; review Cloudflare token lifecycle and origin restrictions.
+
+## Hermes dashboard server review (continued)
+- **HIGH confirmed:** `src/server/viewer.ts` previously treated missing `X-Gate-Role` as administrator (a supposed local trusted caller). The default is now `member`, and admin additionally requires a nonempty authenticated email. Existing unit tests were updated.
+- **HIGH architecture risk still open:** `X-Gate-Role` and `X-Gate-User` are unsigned proxy headers. If the dashboard can be reached directly, an attacker can spoof both headers. Deployment **must** bind the dashboard to loopback, ensure the gate is the only network entry point, and verify that Caddy strips incoming identity headers. Consider cryptographically authenticated proxy identity rather than trusting raw headers.
+- **MEDIUM confirmed:** `src/server/api.ts` previously used `request.text()` before checking its size, permitting large request-body allocations. It now reads the stream with a byte limit and cancels oversized requests. Unit tests added but not yet run under the dashboard's Node/Vitest toolchain.
+- **Open:** run the complete dashboard `pnpm test` and `pnpm typecheck` on Node >=24, inspect the full dependency tree and lockfile, and add HTTP end-to-end tests.
