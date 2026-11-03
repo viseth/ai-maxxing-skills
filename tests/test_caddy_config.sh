@@ -5,7 +5,7 @@ set -euo pipefail
 command -v caddy >/dev/null || { echo "caddy executable missing" >&2; exit 3; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-awk '/^gate_snippet\(\)/ {p=1} p {print} p && /^\}/ {exit}' skills/setup-vps/scripts/expose.sh > "$tmp/gate-function.sh"
+sed -n '/^gate_snippet()/,/^# The gate:/p' skills/setup-vps/scripts/expose.sh | sed '$d' > "$tmp/gate-function.sh"
 source "$tmp/gate-function.sh"
 GATE_AUTH_PORT=9180
 gate_snippet gate /.gate/verify > "$tmp/gate.caddy"
