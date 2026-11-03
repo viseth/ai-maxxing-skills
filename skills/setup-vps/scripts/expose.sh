@@ -17,7 +17,7 @@
 #   expose.sh status                         tunnel, gate, users, every hostname, and any route that skips the gate
 # --as-local sends Host and Origin as 127.0.0.1:<port>, for apps that only answer to localhost (the Hermes dashboard).
 # --admins keeps the site for admins: members who sign in get "restricted access". The app behind receives the
-# signed-in email and role in the X-Gate-User and X-Gate-Role headers (a saved IP counts as admin, with no email).
+# signed-in email and role in the X-Gate-User and X-Gate-Role headers (a saved IP is never sufficient for admin).
 # gate.py (and its font geist.woff2) must sit next to this script or in /usr/local/lib/vps-gate.
 # Exit codes: 0 ok, 2 bad usage, 3 missing setup, 4 DNS name already used by something else, 5 Cloudflare or Lumail error.
 set -euo pipefail
@@ -37,7 +37,7 @@ load_cf() {
   local home env
   home="$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)"
   env="${CLOUDFLARE_ENV_FILE:-$home/.config/cloudflare/env}"
-  [ -f "$env" ] || { echo "no Cloudflare token on the VPS ($env): run import-keys.sh cloudflare from the Mac" >&2; exit 3; }
+  [ -f "$env" ] || { echo "no Cloudflare token on the VPS ($env): configure a dedicated scoped Cloudflare token locally" >&2; exit 3; }
   # shellcheck disable=SC1090
   . "$env"
   [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || { echo "token or account missing in $env" >&2; exit 3; }
@@ -45,7 +45,7 @@ load_cf() {
 
 cfapi() { # method path [json-body]
   local out
-  out="$(curl -sS -X "$1" "$API$2" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" ${3:+--data "$3"})"
+  out="$(curl -fsS --max-time 20 -X "$1" "$API$2" -H @<(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN") -H "Content-Type: application/json" ${3:+--data "$3"})"
   if [ "$(printf '%s' "$out" | jq -r '.success')" != "true" ]; then
     echo "Cloudflare refused $1 $2: $(printf '%s' "$out" | jq -c '.errors')" >&2
     exit 5
@@ -445,7 +445,9 @@ EOF
 
   remove)
     host="${2:-}"
-    [ -n "$host" ] || { echo "usage: $0 remove <hostname>" >&2; exit 2; }
+    [[ "$host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
+      [[ "$host" == *.* ]] && [[ "$host" != *..* ]] ||
+      { echo "invalid DNS hostname" >&2; exit 2; }
     load_cf
     id="$(tunnel_id)"
     set_ingress "$host" remove
