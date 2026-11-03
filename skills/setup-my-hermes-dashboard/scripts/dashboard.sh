@@ -51,23 +51,8 @@ set_setting() {
 
 case "$cmd" in
   install-node)
-    if command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ]; then
-      echo "node=$(node --version) already there"
-    else
-      case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported CPU $(uname -m)" >&2; exit 3 ;; esac
-      command -v xz >/dev/null 2>&1 || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq xz-utils >/dev/null; }
-      tmp="$(mktemp -d)"
-      base=https://nodejs.org/dist/latest-v24.x
-      curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
-      file="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' "$tmp/SHASUMS256.txt")"
-      [ -n "$file" ] || { echo "no Node 24 build for linux-$arch" >&2; exit 3; }
-      curl -fsSL "$base/$file" -o "$tmp/$file"
-      (cd "$tmp" && grep " $file\$" SHASUMS256.txt | sha256sum -c --quiet)
-      $SUDO tar -xJf "$tmp/$file" -C /usr/local --strip-components=1 --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md
-      rm -f "$tmp/SHASUMS256.txt" "$tmp/$file" && rmdir "$tmp"
-    fi
-    [ "$(pnpm --version 2>/dev/null)" = "$PNPM_VERSION" ] || $SUDO npm install -g --silent "pnpm@$PNPM_VERSION" >/dev/null
-    echo "node=$(node --version) pnpm=$(pnpm --version)"
+    echo "BLOCKED: provision reviewed, version-pinned Node.js and pnpm releases manually; no mutable latest-v24.x download or global npm install" >&2
+    exit 78
     ;;
 
   deploy)
