@@ -197,20 +197,12 @@ EOF
     domain="${2:-}"; dir="${3:-}"
     [ -n "$domain" ] && [ -d "$dir" ] || { echo "usage: $0 skills <domain> <folder of skills>" >&2; exit 2; }
     need_hermes
-    # The cf CLI needs Node 22.23+ or 24.22+: the official Node 24 build, checked against its published sums.
-    if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
-      case "$(uname -m)" in x86_64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported CPU $(uname -m)" >&2; exit 3 ;; esac
-      command -v xz >/dev/null 2>&1 || { $SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq xz-utils >/dev/null; }
-      tmp="$(mktemp -d)"; base=https://nodejs.org/dist/latest-v24.x
-      curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
-      file="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' "$tmp/SHASUMS256.txt")"
-      curl -fsSL "$base/$file" -o "$tmp/$file"
-      (cd "$tmp" && grep " $file\$" SHASUMS256.txt | sha256sum -c --quiet)
-      $SUDO tar -xJf "$tmp/$file" -C /usr/local --strip-components=1 --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md
-      rm -f "$tmp/SHASUMS256.txt" "$tmp/$file" && rmdir "$tmp"
-      hash -r
-    fi
-    command -v cf >/dev/null 2>&1 || $SUDO npm install -g --silent cf >/dev/null
+    # Do not install a mutable Node archive or an unpinned global npm package.
+    # The operator must provision and review both executables separately.
+    command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ] ||
+      { echo "BLOCKED: install a reviewed Node 24 release manually before adding skills" >&2; exit 78; }
+    command -v cf >/dev/null 2>&1 ||
+      { echo "BLOCKED: install a reviewed and pinned cf CLI manually; no unpinned global npm install" >&2; exit 78; }
     mkdir -p "$(dirname "$DOMAIN_FILE")" && echo "$domain" > "$DOMAIN_FILE"
     for src in "$dir"/*/; do
       [ -f "$src/SKILL.md" ] && install_skill "$src" "$domain"
