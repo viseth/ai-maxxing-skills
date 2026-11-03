@@ -62,6 +62,8 @@ jobs:
           assert 'request_header -X-Gate-User' in expose
           assert 'request_header -X-Gate-Role' in expose
           assert 'invalid hostname or TCP port' in expose
+          assert 'if f is None:' in gate
+          assert 'max_num_fields=32' in gate
           PY
       - name: Upload findings
         uses: actions/upload-artifact@v4
