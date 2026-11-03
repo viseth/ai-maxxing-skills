@@ -45,7 +45,16 @@ load_cf() {
 
 cfapi() { # method path [json-body]
   local out
-  out="$(curl -fsS --max-time 20 -X "$1" "$API$2" -H @<(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN") -H "Content-Type: application/json" ${3:+--data "$3"})"
+  local -a args=(-fsS --max-time 20 -X "$1" "$API$2"
+    -H @<(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN")
+    -H "Content-Type: application/json")
+  if [ "$#" -ge 3 ]; then
+    args+=(--data "$3")
+  fi
+  if ! out="$(curl "${args[@]}")"; then
+    echo "Cloudflare API request failed: $1 $2" >&2
+    return 5
+  fi
   if [ "$(printf '%s' "$out" | jq -r '.success')" != "true" ]; then
     echo "Cloudflare refused $1 $2: $(printf '%s' "$out" | jq -c '.errors')" >&2
     exit 5
