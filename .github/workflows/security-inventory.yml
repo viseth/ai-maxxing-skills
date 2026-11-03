@@ -64,6 +64,8 @@ jobs:
           assert 'invalid hostname or TCP port' in expose
           assert 'if f is None:' in gate
           assert 'max_num_fields=32' in gate
+          assert 'original_method in ("GET", "HEAD")' in gate
+          assert 'if self.session() or ip_saved(self.ip):' not in gate
           PY
       - name: Upload findings
         uses: actions/upload-artifact@v4
