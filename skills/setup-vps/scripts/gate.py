@@ -672,7 +672,7 @@ class Gate(BaseHTTPRequestHandler):
             if ip_saved(self.ip) and not need_admin and original_method in ("GET", "HEAD"):
                 return self.send(204, headers={"X-Gate-User": "", "X-Gate-Role": "user"})
             nxt = safe_next(self.headers.get("X-Forwarded-Uri"))
-            if (self.headers.get("X-Forwarded-Method") or "GET") in ("GET", "HEAD"):
+            if (self.headers.get("X-Forwarded-Method") or "").upper() in ("GET", "HEAD"):
                 return self.send(302, headers={"Location": "/.gate/login?next=" + urllib.parse.quote(nxt, safe="")})
             return self.send(401)
         if url.path == "/.gate/login":
