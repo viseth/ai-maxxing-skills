@@ -68,3 +68,9 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - **Usability/security fix:** a saved IP no longer prevents the visitor from reaching the login page to obtain a session for write operations.
 - **Important limitations:** HTTP GET/HEAD are assumed read-only; any state-changing GET endpoint remains vulnerable. The gate trusts the proxy-supplied original method and IP; direct access to the gate listener or spoofable proxy headers can undermine these checks. Real HTTP integration tests and a network boundary audit remain required.
 - CI adds static assertions for the method restriction. No end-to-end request authorization test has yet been executed.
+
+## Localhost HTTP integration tests for VPS gate
+- Added `tests/test_gate_http.py`, which starts the real `ThreadingHTTPServer` gate on a loopback ephemeral port with temporary fixtures and sends HTTP requests using the standard library. It does not contact production services.
+- The matrix covers anonymous and allowlisted IP access, GET/HEAD versus mutating methods, admin-only routes, member/admin session roles, invalid cookies, missing proxy IP, malformed form requests, and login reachability from an allowlisted IP.
+- The inventory CI job now installs test-only `bcrypt==4.2.1` and runs `python3 -m unittest discover -s tests -p 'test_gate_http.py' -v`. This adds behavior coverage beyond string assertions.
+- **Still untested:** the actual Caddy/Cloudflare proxy integration, externally reachable interfaces, cross-site browser behavior, direct dashboard access, and GET endpoints with side effects.
