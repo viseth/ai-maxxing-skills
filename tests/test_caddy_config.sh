@@ -39,5 +39,5 @@ import $tmp/site.caddy
 EOF
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
   --mount "type=bind,src=$tmp,dst=$tmp,readonly" \
-  caddy:2.10.2 validate --config "$tmp/Caddyfile" --adapter caddyfile
+  caddy:2.10.2 caddy validate --config "$tmp/Caddyfile" --adapter caddyfile
 echo "Representative gate + app Caddy configuration validated"
