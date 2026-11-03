@@ -89,6 +89,29 @@ class GateHttpTests(unittest.TestCase):
             status, _ = self.request(url="/.gate/login", body=body, extra={"Content-Length": length})
             self.assertEqual(status, 400)
 
+    def test_expired_session_is_rejected(self):
+        import base64
+        import hashlib
+        import hmac
+        import time
+        email = "admin@example.test"
+        who = base64.urlsafe_b64encode(email.encode()).decode().rstrip("=")
+        expiry = str(int(time.time()) - 10)
+        token = f"{who}.{expiry}.{gate.session_mac(email, expiry)}"
+        status, _ = self.request(method="POST", cookie=token)
+        self.assertEqual(status, 401)
+
+    def test_allowlisted_ip_requires_explicit_original_method(self):
+        for forwarded in ("", "TRACE", "CONNECT", "post", "INVALID"):
+            status, _ = self.request(method=forwarded)
+            self.assertEqual(status, 401)
+
+    def test_allowlisted_ip_cannot_write_with_spoofed_identity_headers(self):
+        status, _ = self.request(method="DELETE", extra={
+            "X-Gate-Role": "admin", "X-Gate-User": "admin@example.test",
+        })
+        self.assertEqual(status, 401)
+
     def test_missing_proxy_ip_denied(self):
         status, _ = self.request(ip="", method="GET")
         self.assertEqual(status, 403)
