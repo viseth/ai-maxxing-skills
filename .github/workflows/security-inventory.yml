@@ -51,6 +51,10 @@ jobs:
           grep -q "arbitrary API endpoint disabled" /tmp/api.out
           python3 skills/connect-tool/scripts/cli_template.py login < /dev/null > /tmp/login.out 2>&1 && exit 1 || true
           grep -q "non-interactive login disabled" /tmp/login.out
+      - name: Gate HTTP authorization integration tests
+        run: |
+          python3 -m pip install --user bcrypt==4.2.1
+          python3 -m unittest discover -s tests -p 'test_gate_http.py' -v
       - name: Gate security regression assertions
         run: |
           python3 - <<'PY'
