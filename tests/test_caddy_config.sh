@@ -2,7 +2,7 @@
 set -euo pipefail
 # Validate a representative local Caddy config with the exact gate_snippet() implementation.
 # No tunnel, DNS, root service, or production app is started.
-command -v caddy >/dev/null || { echo "caddy executable missing" >&2; exit 3; }
+command -v docker >/dev/null || { echo "Docker required for isolated pinned-version Caddy validation" >&2; exit 3; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 sed -n '/^gate_snippet()/,/^# The gate:/p' skills/setup-vps/scripts/expose.sh | sed '$d' > "$tmp/gate-function.sh"
@@ -37,5 +37,7 @@ cat > "$tmp/Caddyfile" <<EOF
 import $tmp/gate.caddy
 import $tmp/site.caddy
 EOF
-caddy validate --config "$tmp/Caddyfile" --adapter caddyfile
+docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --mount "type=bind,src=$tmp,dst=$tmp,readonly" \
+  caddy:2.10.2 validate --config "$tmp/Caddyfile" --adapter caddyfile
 echo "Representative gate + app Caddy configuration validated"
