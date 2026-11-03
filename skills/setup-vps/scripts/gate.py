@@ -656,9 +656,10 @@ class Gate(BaseHTTPRequestHandler):
                 if need_admin and role != "admin":
                     return self.denied_page(email)
                 return self.send(204, headers={"X-Gate-User": email, "X-Gate-Role": role})
-            # A saved IP is the owner's own network: it counts as admin, with no email.
-            if ip_saved(self.ip):
-                return self.send(204, headers={"X-Gate-User": "", "X-Gate-Role": "admin"})
+            # A saved network is not proof of administrator identity.
+            # IP allowlisting can bypass sign-in for ordinary resources only.
+            if ip_saved(self.ip) and not need_admin:
+                return self.send(204, headers={"X-Gate-User": "", "X-Gate-Role": "user"})
             nxt = safe_next(self.headers.get("X-Forwarded-Uri"))
             if (self.headers.get("X-Forwarded-Method") or "GET") in ("GET", "HEAD"):
                 return self.send(302, headers={"Location": "/.gate/login?next=" + urllib.parse.quote(nxt, safe="")})
