@@ -141,7 +141,10 @@ case "$cmd" in
     [[ "$port" =~ ^[0-9]{1,5}$ ]] && (( 10#$port >= 1 && 10#$port <= 65535 )) ||
       { echo "invalid dashboard TCP port" >&2; exit 2; }
     for value in "$HOME" "$(command -v hermes || true)" "$(id -un)"; do
-      [[ "$value" != *[
+      [[ "$value" != *[$'\r\n']* ]] && [[ ! "$value" =~ [[:cntrl:]] ]] ||
+        { echo "invalid systemd service value" >&2; exit 2; }
+    done
+    command -v hermes >/dev/null 2>&1 || { echo "Hermes is missing: run '$0 install'" >&2; exit 3; }
     unit=/etc/systemd/system/hermes-dashboard.service
     if [ -f "$unit" ] && ! grep -q "Managed by hermes.sh" "$unit"; then
       echo "a hermes-dashboard service already exists and was not made by this script: keeping it" >&2
