@@ -1,6 +1,6 @@
 ---
 name: setup-vps
-description: Turn the user's VPS into their 24/7 agent. Copies their GitHub and Cloudflare access, installs Hermes on Claude Code, to chat with on Telegram or Discord, and puts its dashboard on hermes.their-domain behind a sign-in page: email + one-time code sent by Lumail, several users with roles (admin, member), brute-force locks and saved IPs. `/setup-vps discord` connects Hermes to Discord almost on its own: bot, private channel, access role. Use after connect-vps.
+description: "Turn the user's VPS into their 24/7 agent. Copies their GitHub and Cloudflare access, installs Hermes on Claude Code, to chat with on Telegram or Discord, and puts its dashboard on hermes.their-domain behind a sign-in page: email + one-time code sent by Lumail, several users with roles (admin, member), brute-force locks and saved IPs. `/setup-vps discord` connects Hermes to Discord almost on its own: bot, private channel, access role. Use after connect-vps."
 argument-hint: "[domain, e.g. example.com | discord] [alias, default hermes]"
 user-invocable: true
 ---
