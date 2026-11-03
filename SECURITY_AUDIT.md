@@ -48,3 +48,10 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - **HIGH architecture risk still open:** `X-Gate-Role` and `X-Gate-User` are unsigned proxy headers. If the dashboard can be reached directly, an attacker can spoof both headers. Deployment **must** bind the dashboard to loopback, ensure the gate is the only network entry point, and verify that Caddy strips incoming identity headers. Consider cryptographically authenticated proxy identity rather than trusting raw headers.
 - **MEDIUM confirmed:** `src/server/api.ts` previously used `request.text()` before checking its size, permitting large request-body allocations. It now reads the stream with a byte limit and cancels oversized requests. Unit tests added but not yet run under the dashboard's Node/Vitest toolchain.
 - **Open:** run the complete dashboard `pnpm test` and `pnpm typecheck` on Node >=24, inspect the full dependency tree and lockfile, and add HTTP end-to-end tests.
+
+## Dashboard CI verification (continued)
+- `pnpm-lock.yaml` contained two concatenated YAML documents. Removed the short first document, retaining the complete lockfile.
+- GitHub Actions now has a dedicated dashboard job with Node 24, Corepack/pnpm frozen lockfile installation, `pnpm test` and `pnpm typecheck`. **Both jobs succeeded** in run `41735998309` at commit `fa92c193531a670ff2c0acef3850ed8d5596a84d`.
+- The new unit tests exercise the missing-role admin denial and streamed JSON byte limits. This is **not** a deployed Caddy/Gate integration test.
+- **Release-blocking architecture concern:** unsigned proxy identity headers remain trusted for administrator authorization. Dashboard must not be reachable except through the trusted proxy, and local users/processes able to call loopback must be considered in the threat model. An authenticated proxy-to-app channel is recommended.
+- GitHub Actions actions are referenced by major tags rather than immutable SHA pins. Dependency vulnerability scanning and provenance verification are still outstanding.
