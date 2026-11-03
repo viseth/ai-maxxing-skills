@@ -29,7 +29,10 @@ step() {
 # 1. The base skills, from the kit only
 args=()
 for s in $SKILLS; do args+=(-s "$s"); done
-step "skills" npx -y skills add Melvynx/ai-maxxing-skills -g -a claude-code -a codex "${args[@]}" -y
+echo "BLOCKED: global unreviewed installation. Install a reviewed, commit-pinned release manually with explicit approval." >&2
+exit 78
+# Original automatic installation disabled:
+# step "skills" npx -y skills add Melvynx/ai-maxxing-skills -g -a claude-code -a codex "${args[@]}" -y
 
 # 2. Claude Code works without asking before each action, but never runs these commands or reads .env files.
 #    Other keys of the settings file are kept.
@@ -40,7 +43,7 @@ claude_settings() {
     let s = {};
     try { s = JSON.parse(fs.readFileSync(p, "utf8")); } catch {}
     s.permissions = s.permissions || {};
-    s.permissions.defaultMode = "bypassPermissions";
+    s.permissions.defaultMode = "default";
     s.permissions.deny = s.permissions.deny || [];
     for (const r of ["Bash(rm -rf *)", "Bash(sudo *)", "Bash(curl * | bash)", "Bash(wget * | bash)", "Read(./.env)", "Read(./.env.*)"])
       if (!s.permissions.deny.includes(r)) s.permissions.deny.push(r);
@@ -67,8 +70,8 @@ shortcuts() {
   local rc block
   block='# BEGIN AI Maxxing shortcuts
 # Claude Code
-alias cc="claude --dangerously-skip-permissions"
-alias ccc="claude --dangerously-skip-permissions -c"
+alias cc="claude"
+alias ccc="claude -c"
 # Codex
 alias cx="codex"
 alias cxc="codex resume --last"
