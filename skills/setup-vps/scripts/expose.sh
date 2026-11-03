@@ -34,13 +34,37 @@ API=https://api.cloudflare.com/client/v4
 cmd="${1:-}"
 
 load_cf() {
-  local home env
+  local home env line key value
   home="$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)"
   env="${CLOUDFLARE_ENV_FILE:-$home/.config/cloudflare/env}"
-  [ -f "$env" ] || { echo "no Cloudflare token on the VPS ($env): configure a dedicated scoped Cloudflare token locally" >&2; exit 3; }
-  # shellcheck disable=SC1090
-  . "$env"
-  [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || { echo "token or account missing in $env" >&2; exit 3; }
+  [ -f "$env" ] && [ ! -L "$env" ] || { echo "Cloudflare token file missing or symlinked ($env)" >&2; return 3; }
+  # This file can belong to the invoking non-root user. NEVER source it as root.
+  # Read only two literal KEY=VALUE assignments; no shell expansion or evaluation.
+  CLOUDFLARE_API_TOKEN=""
+  CLOUDFLARE_ACCOUNT_ID=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    if [[ "$line" =~ ^(export[[:space:]]+)?(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$ ]]; then
+      key="${BASH_REMATCH[2]}"
+      value="${BASH_REMATCH[3]}"
+      # Accept conventional single- or double-quoted literal values, not expressions.
+      if [[ "$value" == \"*\" || "$value" == \'*\' ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+      if [[ ! "$value" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "invalid Cloudflare credential value in $env" >&2
+        return 3
+      fi
+      printf -v "$key" '%s' "$value"
+    else
+      echo "unsupported Cloudflare credential line in $env (only literal token and account ID accepted)" >&2
+      return 3
+    fi
+  done < "$env"
+  [ -n "$CLOUDFLARE_API_TOKEN" ] && [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]] || {
+    echo "Cloudflare token or 32-character account ID missing/invalid in $env" >&2
+    return 3
+  }
 }
 
 cfapi() { # method path [json-body]
