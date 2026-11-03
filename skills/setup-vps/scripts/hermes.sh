@@ -185,15 +185,8 @@ EOF
     ;;
 
   autonomy)
-    need_hermes
-    cp "$(hermes config path)" "$(hermes config path).bak-$(date +%s)"
-    # No "may I run this?" questions: Hermes runs every command and edits its own instruction files directly.
-    hermes config set approvals.mode off >/dev/null
-    hermes config set security.protected_instruction_files false >/dev/null
-    # One short line in the chat for every tool Hermes uses.
-    for platform in telegram discord; do hermes config set "display.platforms.$platform.tool_progress" all >/dev/null; done
-    hermes gateway restart < /dev/null >/dev/null 2>&1 || true
-    echo "autonomy ok: approvals $(hermes config get approvals.mode | tail -1), tool lines $(hermes config get display.platforms.telegram.tool_progress | tail -1)"
+    echo "BLOCKED: unattended autonomy disables approval checks and instruction-file protections." >&2
+    exit 78
     ;;
 
   skills)
