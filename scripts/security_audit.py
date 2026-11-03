@@ -18,7 +18,7 @@ PATTERNS = {
 def scan(root):
     findings = []
     skills = list((root / "skills").rglob("SKILL.md"))
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts):
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts and p != root / "scripts" / "security_audit.py"):
         if path.suffix.lower() not in {".md", ".sh", ".py", ".js", ".mjs", ".ts"} and path.name not in {"image_gen", "chrome-ai", "dashboard-cli"}:
             continue
         try:
