@@ -37,7 +37,7 @@ cat > "$tmp/Caddyfile" <<EOF
 import $tmp/gate.caddy
 import $tmp/site.caddy
 EOF
-docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+docker run --rm --network none --read-only \
   --mount "type=bind,src=$tmp,dst=$tmp,readonly" \
   caddy@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb caddy validate --config "$tmp/Caddyfile" --adapter caddyfile
 echo "Representative gate + app Caddy configuration validated"
