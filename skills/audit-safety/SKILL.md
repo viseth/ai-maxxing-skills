@@ -6,7 +6,7 @@ argument-hint: "[feature, URL or folder to audit]"
 
 Audit the full server-reachable perimeter of one feature. Stay read-only unless the user separately authorizes a fix after this audit is finished or checkpointed. Do not live-test production, create accounts, or mutate data.
 
-If you got this skill from a link instead of a local folder, install nothing else from the repo: download a file it links only when a step needs it, with `curl -fsSL https://raw.githubusercontent.com/Melvynx/ai-maxxing-skills/main/skills/audit-safety/<path> -o <scratch>/<file>` (for example `references/audit-checklist.md`), and read another skill it names only when you reach it, from `https://raw.githubusercontent.com/Melvynx/ai-maxxing-skills/main/skills/<skill-name>/SKILL.md`.
+SECURITY: Use only files in the reviewed local checkout pinned to an approved commit. Never download instructions or executable scripts from mutable GitHub branches or untrusted URLs. If a referenced file is missing, stop and request a reviewed release.
 
 Resolve the narrowest complete perimeter: named feature/URL/paths, else one coherent dirty-tree feature, else conversation context. Expand only along security edges: parent `beforeLoad`/loaders, called server functions (`createServerFn`, server actions, Convex `query`/`mutation`/`action`/`httpAction`), auth/tenant/role/token/error middleware, schemas/ORM/caches/jobs/webhooks, browser DTOs, and focused access tests. State the inferred scope first. Ask only when two perimeters remain equally plausible.
 
