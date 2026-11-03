@@ -68,3 +68,26 @@ jobs:
         with:
           name: security-findings
           path: security-findings.json
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills/setup-my-hermes-dashboard/template
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pinned package manager
+        run: corepack enable
+      - name: Verify lockfile and install dependencies
+        run: |
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile
+      - name: Dashboard unit tests
+        run: corepack pnpm test
+      - name: Dashboard TypeScript check
+        run: corepack pnpm typecheck
