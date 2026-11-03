@@ -637,10 +637,18 @@ class Gate(BaseHTTPRequestHandler):
         return f"{COOKIE}={token}; Path=/; Max-Age={max_age}; HttpOnly; Secure; SameSite=Lax"
 
     def form(self):
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > 4096:
-            return {}
-        return {k: v[0] for k, v in urllib.parse.parse_qs(self.rfile.read(length).decode(errors="replace")).items()}
+        # Reject malformed and oversized bodies before reading them.
+        raw_length = self.headers.get("Content-Length")
+        if raw_length is None or not raw_length.isascii() or not raw_length.isdecimal():
+            return None
+        length = int(raw_length)
+        if length < 1 or length > 4096:
+            return None
+        try:
+            body = self.rfile.read(length).decode("utf-8", errors="strict")
+            return {k: v[0] for k, v in urllib.parse.parse_qs(body, max_num_fields=32, errors="strict").items()}
+        except (UnicodeError, ValueError):
+            return None
 
     def do_GET(self):
         url = urllib.parse.urlsplit(self.path)
@@ -678,6 +686,8 @@ class Gate(BaseHTTPRequestHandler):
         if not self.ip:
             return self.send(403)
         f = self.form()
+        if f is None:
+            return self.send(400)
         nxt = safe_next(f.get("next"))
         email = (f.get("email") or "").strip().lower()[:200]
         if url.path == "/.gate/login" and code_mode():
