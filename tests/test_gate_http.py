@@ -22,6 +22,7 @@ class GateHttpTests(unittest.TestCase):
         Path(cls.tmp.name, "secret").write_bytes(os.urandom(32))
         Path(cls.tmp.name, "users").write_text("admin@example.test admin\nmember@example.test member\n")
         Path(cls.tmp.name, "ips").write_text("192.0.2.10/32\n")
+        Path(cls.tmp.name, "lumail").write_text("key=test-only-no-network\nfrom=test@example.test\n")
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), gate.Gate)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
