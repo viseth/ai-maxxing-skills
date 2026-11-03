@@ -39,11 +39,34 @@ export function withKey(scope: Scope, handler: Handler) {
 
 /** Reads a JSON body of at most `limit` bytes; null when it is missing, too big or not JSON. */
 export async function readJson(request: Request, limit = 200_000): Promise<unknown> {
-  const text = await request.text().catch(() => "");
-  if (!text || text.length > limit) return null;
+  if (!Number.isSafeInteger(limit) || limit <= 0 || !request.body) return null;
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null && (!/^\\d+$/.test(declaredLength) || Number(declaredLength) > limit)) return null;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
-    return JSON.parse(text);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+    if (!total) return null;
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   } catch {
     return null;
+  } finally {
+    reader.releaseLock();
   }
 }
