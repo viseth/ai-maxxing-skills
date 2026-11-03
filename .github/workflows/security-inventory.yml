@@ -51,6 +51,8 @@ jobs:
           grep -q "arbitrary API endpoint disabled" /tmp/api.out
           python3 skills/connect-tool/scripts/cli_template.py login < /dev/null > /tmp/login.out 2>&1 && exit 1 || true
           grep -q "non-interactive login disabled" /tmp/login.out
+      - name: Reject executable Cloudflare credential files
+        run: bash tests/test_cloudflare_env.sh
       - name: Gate HTTP authorization integration tests
         run: |
           python3 -m pip install --user bcrypt==4.2.1
