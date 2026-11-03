@@ -59,7 +59,11 @@ install_skill() {
 }
 # Clones or updates the ai-maxxing package.
 pull_pkg() {
-  if [ -d "$PKG/.git" ]; then git -C "$PKG" pull -q --ff-only; else mkdir -p "$(dirname "$PKG")" && git clone -q --depth 1 https://github.com/Melvynx/ai-maxxing-skills "$PKG"; fi
+  # Remote auto-updates from mutable upstream are forbidden.
+  # Operator must stage a reviewed, commit-pinned checkout at $PKG.
+  [ -d "$PKG/.git" ] || { echo "BLOCKED: stage a reviewed pinned checkout in $PKG first" >&2; exit 78; }
+  [ -z "$(git -C "$PKG" status --porcelain)" ] || { echo "BLOCKED: staged checkout has local changes" >&2; exit 78; }
+  echo "Using existing reviewed local checkout: $(git -C "$PKG" rev-parse HEAD)"
 }
 # The package folder of a skill: a skill of the package, one of the server's tool skills, or the Hermes skill
 # that comes with a setup skill (the dashboard one).
