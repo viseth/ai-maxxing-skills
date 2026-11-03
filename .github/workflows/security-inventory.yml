@@ -53,6 +53,14 @@ jobs:
           grep -q "arbitrary API endpoint disabled" /tmp/api.out
           python3 skills/connect-tool/scripts/cli_template.py login < /dev/null > /tmp/login.out 2>&1 && exit 1 || true
           grep -q "non-interactive login disabled" /tmp/login.out
+      - name: Verify mutable dashboard bootstrap is disabled
+        run: |
+          set +e
+          bash skills/setup-my-hermes-dashboard/scripts/dashboard.sh install-node >/tmp/node-blocked.out 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 78
+          grep -q 'BLOCKED' /tmp/node-blocked.out
       - name: Reject executable Cloudflare credential files
         run: bash tests/test_cloudflare_env.sh
       - name: Validate representative Caddy configuration
