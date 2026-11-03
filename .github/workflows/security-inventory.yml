@@ -65,8 +65,8 @@ jobs:
           assert '"X-Gate-Role": "user"' in gate
           assert 'request_header -X-Gate-User' in expose
           assert 'request_header -X-Gate-Role' in expose
-          assert 'echo "\\trequest_header' not in expose
-          assert 'printf "\\trequest_header -X-Gate-User\\n"' in expose
+          assert r'echo "\trequest_header' not in expose
+          assert r'printf "\trequest_header -X-Gate-User\n"' in expose
           assert 'invalid hostname or TCP port' in expose
           assert 'if f is None:' in gate
           assert 'max_num_fields=32' in gate
