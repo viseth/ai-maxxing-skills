@@ -12,7 +12,7 @@ export type Viewer = { email: string | null; role: Role };
 export function viewerFrom(user: string | null | undefined, role: string | null | undefined): Viewer {
   const email = user?.trim().toLowerCase() || null;
   // Fail closed: no proxy identity header must never imply administrator privileges.
-  return { email, role: role?.trim().toLowerCase() === "admin" ? "admin" : "member" };
+  return { email, role: email && role?.trim().toLowerCase() === "admin" ? "admin" : "member" };
 }
 
 export const getViewer = (): Viewer => viewerFrom(getRequestHeader("x-gate-user"), getRequestHeader("x-gate-role"));
