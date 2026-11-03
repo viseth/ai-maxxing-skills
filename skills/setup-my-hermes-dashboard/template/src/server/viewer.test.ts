@@ -15,6 +15,7 @@ describe("viewerFrom", () => {
 
   it("treats a saved IP as a non-admin member", () => {
     expect(viewerFrom("", "user")).toEqual({ email: null, role: "member" });
+    expect(viewerFrom("", "admin")).toEqual({ email: null, role: "member" });
   });
 
   it("never upgrades an unknown role", () => {
