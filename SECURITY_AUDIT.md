@@ -62,3 +62,9 @@ No high/critical unresolved findings, reproducible CI and documented threat mode
 - `gate.py` form parsing now rejects missing/nondecimal/oversized `Content-Length`, invalid UTF-8, and more than 32 URL-encoded form fields; malformed requests return HTTP 400. The workflow includes static assertions, **not HTTP integration tests**.
 - The previous GitHub Actions run `41736284930` succeeded after the skill instruction edits; gate form changes were awaiting validation at documentation time.
 - Release remains BLOCKED: additional mutable downloads, unpinned installers, secret-handling paths and proxy trust assumptions require review.
+
+## Gate allowlist authorization refinement
+- **HIGH confirmed:** a saved client IP previously bypassed authentication for all HTTP methods on non-admin applications. Now IP-only authorization is limited to original `GET` and `HEAD` requests, as passed by Caddy in `X-Forwarded-Method`. Other methods require an authenticated session.
+- **Usability/security fix:** a saved IP no longer prevents the visitor from reaching the login page to obtain a session for write operations.
+- **Important limitations:** HTTP GET/HEAD are assumed read-only; any state-changing GET endpoint remains vulnerable. The gate trusts the proxy-supplied original method and IP; direct access to the gate listener or spoofable proxy headers can undermine these checks. Real HTTP integration tests and a network boundary audit remain required.
+- CI adds static assertions for the method restriction. No end-to-end request authorization test has yet been executed.
