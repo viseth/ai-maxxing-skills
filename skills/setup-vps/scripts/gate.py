@@ -666,7 +666,10 @@ class Gate(BaseHTTPRequestHandler):
                 return self.send(204, headers={"X-Gate-User": email, "X-Gate-Role": role})
             # A saved network is not proof of administrator identity.
             # IP allowlisting can bypass sign-in for ordinary resources only.
-            if ip_saved(self.ip) and not need_admin:
+            # A network allowlist grants read-only access, never write access.
+            # Require an authenticated session for POST/PUT/PATCH/DELETE and other methods.
+            original_method = (self.headers.get("X-Forwarded-Method") or "").upper()
+            if ip_saved(self.ip) and not need_admin and original_method in ("GET", "HEAD"):
                 return self.send(204, headers={"X-Gate-User": "", "X-Gate-Role": "user"})
             nxt = safe_next(self.headers.get("X-Forwarded-Uri"))
             if (self.headers.get("X-Forwarded-Method") or "GET") in ("GET", "HEAD"):
@@ -674,7 +677,7 @@ class Gate(BaseHTTPRequestHandler):
             return self.send(401)
         if url.path == "/.gate/login":
             nxt = safe_next(urllib.parse.parse_qs(url.query).get("next", ["/"])[0])
-            if self.session() or ip_saved(self.ip):
+            if self.session():
                 return self.send(302, headers={"Location": nxt})
             return self.login_page(nxt=nxt)
         if url.path == "/.gate/logout":
